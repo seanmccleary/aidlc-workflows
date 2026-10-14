@@ -1838,7 +1838,8 @@ not a second native lifecycle interface.
 ## Remove AI-DLC from a Project
 
 No command removes AI-DLC from one project. `aidlc uninstall` removes the
-machine install and refuses project folders. The steps below take a project back
+machine install, for every project on this machine, and leaves project files
+alone. The steps below take a project back
 to how it was before AI-DLC was added to it. They keep your own harness files and
 settings, which share folders and files with AI-DLC (a `.kiro/` you had before,
 your own `.claude/settings.json` entries, your part of `AGENTS.md`). Close the
@@ -1850,6 +1851,12 @@ If the project is pinned (it has a `.aidlc-version` file), unpin it first,
 while AI-DLC is still installed: `aidlc config --unpin`, or in a copied project
 `bun <harness folder>/tools/aidlc.ts config --unpin`. That also clears the
 machine's record of the pin, which deleting the file does not.
+
+On Claude Code, turn AI-DLC's status line off too, while AI-DLC is still
+installed: `aidlc config --statusline off`, or in a copied project
+`bun .claude/tools/aidlc.ts config --statusline off`. When AI-DLC's status line
+replaced one of your own, that is the only step that puts yours back: AI-DLC
+keeps it in `aidlc.settings.local.json`, which you delete below.
 
 `aidlc/` holds your work: each intent's state, artifacts and audit trail, and
 the space's memory and knowledge. Archive it before you delete it. In a POSIX
@@ -1936,8 +1943,9 @@ in the project. The same commands work in a POSIX shell and in PowerShell:
 | OpenCode, GitHub Copilot | `node ../remove-aidlc.cjs .aidlc` |
 
 If it says the record predates the shipped-files-only record, an earlier
-release wrote it: refresh with `aidlc config --harness <name>` first, then run
-the script again. Review any file it kept: it is an AI-DLC file you edited, so
+release wrote it: refresh with `aidlc config --harness <name>` first (in a
+copied project, `bun <harness folder>/tools/aidlc.ts config --harness <name>`),
+then run the script again. Review any file it kept: it is an AI-DLC file you edited, so
 keep it only if you still want your edit.
 
 ### 3. Take AI-DLC's part out of shared files
@@ -1955,10 +1963,10 @@ still holds what AI-DLC wrote; a value your team changed is yours, so keep it:
 | `.gitignore` | The lines from `# BEGIN AI-DLC:gitignore` to `# END AI-DLC:gitignore`, and the blank line above them. Several harnesses share this one block. |
 | `AGENTS.md` | The lines from `<!-- BEGIN AI-DLC:agents -->` to `<!-- END AI-DLC:agents -->`, and the blank line above them. |
 | `.claude/settings.json` | `companyAnnouncements`, unless your team set its own. `statusLine` when its command runs `aidlc`. Every hook group whose command runs `aidlc` (`aidlc engine hook ...`, or `bun "$CLAUDE_PROJECT_DIR/.claude/tools/aidlc.ts" engine hook ...` in a copied project). The `permissions.allow` entries that name `aidlc`, and `Edit(/**)`, `Task` and `WebSearch` unless you added them. `env` keys that start with `AIDLC_` or `AWS_AIDLC_`, and any provider keys you chose in `aidlc config providers`. |
-| `.claude/settings.local.json` | A `statusLine` whose command runs `aidlc`, if a refresh moved AI-DLC's status line there. |
-| `.mcp.json` (Claude Code), `.kiro/settings/mcp.json` (Kiro CLI) | The MCP servers AI-DLC ships (`context7`, `aws-mcp`, `aws-pricing`, `aws-iac`, `aws-serverless`), unless you set one up yourself. Kiro CLI gets them by default, turned off; Claude Code gets them only if you turned them on with `--mcp`. |
+| `.claude/settings.local.json` | A `statusLine` whose command runs `aidlc`; AI-DLC's status line lands here when it is turned on. Step 1's `--statusline off` takes it out. |
+| `.mcp.json` (Claude Code), `.kiro/settings/mcp.json` (Kiro CLI) | The MCP servers AI-DLC ships (`context7`, `aws-mcp`, `aws-pricing`, `aws-iac`, `aws-serverless`), unless you set one up yourself. Kiro CLI gets them by default, turned off; Claude Code gets them when you turned them on, by answering yes when `aidlc config` asked at a terminal or with `config project --mcp defaults`. |
 | `.codex/config.toml` | `developer_instructions`, `sandbox_mode`, `suppress_unstable_features_warning` and `tool_output_token_limit`; AI-DLC's keys in `[shell_environment_policy]` (`set`, holding `AIDLC_RULES_DIR`), `[sandbox_workspace_write]` (`network_access`), `[agents]` (`max_depth`), `[features]` (`default_mode_request_user_input`), `[tools]` (`experimental_request_user_input`) and `[tui]` (`status_line`); the `#` comments directly above them; and any of those tables left empty. Keep keys you set yourself, also inside those tables. |
-| `opencode.json` (or `opencode.jsonc`) | `$schema` unless it is yours; `.aidlc/skills` in `skills.paths`; the `instructions` entries under `.aidlc/` and `aidlc/`; and AI-DLC's `permission` rules: the ones naming `.aidlc/`, its asks before `rm -r*` and `git push *`, and the `"*"` rules earlier releases added under `edit` and `bash`, unless you wrote the same rule yourself. |
+| `opencode.json` (or `opencode.jsonc`) | `$schema` unless it is yours; `.aidlc/skills` in `skills.paths`; the `instructions` entries under `.aidlc/` and `aidlc/`; and AI-DLC's `permission` rules: the ones naming `.aidlc/`, `"aidlc engine *": "allow"` under `bash` (a native install), its asks before `rm -r*` and `git push *`, and the `"*"` rules earlier releases added under `edit` and `bash`, unless you wrote the same rule yourself. |
 | `.vscode/settings.json` (Copilot) | `chat.agent.maxRequests` (`200`) and `chat.useHooks` (`true`), unless you set them yourself. |
 
 Delete a file when nothing of yours is left in it: AI-DLC created it. Cursor's
