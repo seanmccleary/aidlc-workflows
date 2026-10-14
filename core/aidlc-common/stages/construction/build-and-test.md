@@ -166,17 +166,17 @@ Attempt to execute the build and test commands documented in the instruction fil
      target: `Met`, `Not Met`, or `Unverified`. `Pending` is allowed only while
      Step 8 is being prepared; no `Pending` verdict may remain when Step 9
      exits.
-   - For a target whose source requires behavior in a browser (a done
-     condition or acceptance criterion that says the person does something in
-     a browser), the Evidence cell names where the check ran: Node, a DOM
-     emulator (jsdom, Happy DOM), or a real browser engine (for example
-     Chromium driven by Playwright). Only a run in a real browser engine makes
-     that target `Met`. Tests in Node or a DOM emulator, including an
+   - Wherever this stage reports browser behavior as tested (a matrix row,
+     a `cross-unit-traceability.md` entry, the summary, or the readiness
+     assessment), name where the check ran: Node, a DOM emulator (jsdom,
+     Happy DOM), or a real browser engine (for example Chromium driven by
+     Playwright). Tests in Node or a DOM emulator, including an
      assembled-bundle journey, are integration evidence: they cannot show
      native browser behavior such as calling `fetch` without its `window`
-     receiver. With no real-browser run, including when a browser cannot
-     launch here, the target is `Unverified` unless the person waives
-     real-browser evidence for it; record the waiver in the Evidence cell.
+     receiver, so never call them browser or end-to-end evidence. Only a run
+     in a real browser engine makes a target that requires behavior in a
+     browser `Met`; without one, including when no browser can launch here,
+     that target is `Unverified`.
    - `## Loop-Back Log` (only when the failure ladder's rung 3 or 4 fires a
      loop-back): one `### Loop-back N — <ISO timestamp>` entry per attempt,
      carrying Diagnosis / Root-cause stage / Planned fix / Estimated impact. This section
@@ -184,7 +184,9 @@ Attempt to execute the build and test commands documented in the instruction fil
      never Redo, on loop-back re-entry — Redo would erase the ledger).
 
 **Failure predicate**: Build and Test has failed when any build or test command
-fails OR any applicable target is `Not Met` or `Unverified`. Before entering
+fails OR any applicable target is `Not Met` or `Unverified`. One exception: a
+browser target whose only gap is that no real browser engine ran it is said at
+the approval gate (Step 12), not handled as a failure. Before entering
 failure handling, finalize the matrix and summary with all evidence available
 on that exit path. Weakening, relaxing, lowering, or disabling a defined
 quality target is never an acceptable fix.
@@ -281,6 +283,12 @@ Present completion message and approval gate:
 ```
 
 Summary of all test instruction sets generated, readiness assessment, then:
+
+When a target, done condition, or acceptance criterion that requires behavior
+in a browser was checked only in Node or a DOM emulator, say so once, in one
+line, naming what and where it ran, for example: "The transfer journey was
+checked in Happy DOM, not a real browser." The person decides at the gate with
+that in front of them.
 
 ```
 **Review:** `<record>/construction/build-and-test/`
