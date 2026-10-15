@@ -444,6 +444,7 @@ import {
   findStageBySlug,
   withPersonsWordsFirst,
   PERSON_ASKED_SKIP_REASON,
+  readUnitSourceManifest,
   unitPlainName,
   unitSkippedItsCode,
 } from "./aidlc-lib.ts";
@@ -532,6 +533,7 @@ import {
 import {
   approvedPlanChangeLine,
   codeGenerationIssuance,
+  codeGenerationResume,
   codeGenerationResumeNarration,
   codeGenerationStartNarration,
   notePlanApprovalOverrideOffered,
@@ -5250,7 +5252,8 @@ function freshWorkOfferDirective(
 
 // The plan proposal step: a request that names no plan is kept as a question
 // and handed to the agent with every plan this install ships (its length here,
-// what it is for, and the hints its author wrote), so the agent proposes the
+// whether its stages split the work into Units, what it is for, and the hints
+// its author wrote), so the agent proposes the
 // one that fits what the person described and the engine renders the plan
 // question with it. A tool never reads the request for meaning; the agent does.
 // Re-run with the same request (`--request <id>`), the step reuses that
@@ -5276,7 +5279,8 @@ function planProposalDirective(
     const cost = effectiveScopeCostSummary(scope, pd, undefined, undefined, undefined, flags.projectType);
     const meta = metadata[scope];
     const hints = meta?.keywords?.length ? `; hints: ${meta.keywords.join(", ")}` : "";
-    return `${scope}${cost ? ` (${cost.shown} ${cost.shown === 1 ? "stage" : "stages"})` : ""}: ${meta?.description ?? ""}${hints}`;
+    const units = cost && cost.perUnitStages > 0 ? ", splits the work into Units" : "";
+    return `${scope}${cost ? ` (${cost.shown} ${cost.shown === 1 ? "stage" : "stages"}${units})` : ""}: ${meta?.description ?? ""}${hints}`;
   });
   return printDirective(
     `The person asked for new work: "${requestPreview(description)}".${documentSplitSentence(description)} No plan is ` +
@@ -11269,7 +11273,7 @@ function unitReceiptOnlyStep(
     ? resolveReviewClass(node.review_class ?? "adversarial", scope, stateContent)
     : "none";
   if (reviewClass === "none") {
-    if (!unitFirstStageAttempt(projectDir, node.slug, unit, stateContent)) return null;
+    if (!unitWorkIsThisAttempts(projectDir, node.slug, unit, stateContent)) return null;
   } else {
     const review = freshReviewReceipts(projectDir, stateContent, node, { reviewClass });
     // Only final verdicts are kept, the same evidence `unit complete` accepts.
@@ -11281,7 +11285,7 @@ function unitReceiptOnlyStep(
       // keeps it; a later attempt's files are not evidence of work done, as
       // with reviews off.
       if (review.unitStale.has(unit) || review.unitStaleProgress.has(unit)) return null;
-      if (!unitFirstStageAttempt(projectDir, node.slug, unit, stateContent)) return null;
+      if (!unitWorkIsThisAttempts(projectDir, node.slug, unit, stateContent)) return null;
       return unitReviewStep(projectDir, node, unit, review);
     }
   }
@@ -11339,6 +11343,22 @@ function unitFirstStageAttempt(projectDir: string, slug: string, unit: string, s
     projectDir, slug, unitMajor, unit, undefined, unitScopedLifecycleFloors(stateContent),
   );
   return /^(?:WORKFLOW_STARTED|STAGE_STARTED):[^#]+#1$/.test(floor);
+}
+
+// True when the Unit's files on disk are this attempt's, so the record it
+// still owes is the step, not the stage body. The stage's first attempt is
+// one proof. Code Generation carries its own for any attempt, a reopen
+// included (#2487): its build started on the plan approved in this attempt
+// (the approval is read against the Unit's current floor, and that build
+// clears the ticks an earlier attempt left), every step is ticked with the
+// files it names present, and its Step 5 source manifest reads as the review
+// command will read it, so the step it names can run.
+function unitWorkIsThisAttempts(projectDir: string, slug: string, unit: string, stateContent: string): boolean {
+  if (unitFirstStageAttempt(projectDir, slug, unit, stateContent)) return true;
+  if (slug !== "code-generation") return false;
+  const built = codeGenerationResume(projectDir, { unit });
+  return built !== null && built.from === "ticks" && built.next === null && built.missing.length === 0 &&
+    readUnitSourceManifest(projectDir, slug, unit).ok;
 }
 
 // `next` for a Unit that owes only its completion receipt: that step, then
